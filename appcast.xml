@@ -1,9 +1,16 @@
 <?xml version="1.0" standalone="yes"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <title>Percev</title>
     <link>https://percev.app/appcast.xml</link>
     <description>Most recent updates to Percev</description>
     <language>en</language>
+    <item>
+      <title>Version 0.1.0</title>
+      <sparkle:version>170</sparkle:version>
+      <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+      <pubDate>Thu, 23 Apr 2026 06:30:07 +0000</pubDate>
+      <enclosure url="https://github.com/sunfmin/percev.app/releases/download/v0.1.0/Percev.dmg" sparkle:edSignature="E1oe2yLljVqIDyEZ1yheH0r5uhOEHv55TZD7hugmkjXSiZs6M8M9Su6kFpddrjBA/p5JmNRr7yWIiy6kNviYDA==" length="5651544" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
