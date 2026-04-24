@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checkout — Percev</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' rx='8' fill='%236366f1'/%3E%3C/svg%3E" />
+  <style>
+    main.checkout { text-align: center; min-height: 60vh; display: flex; flex-direction: column; justify-content: center; }
+    .status { font-size: 18px; color: var(--muted); margin: 16px 0 4px; }
+    .error { color: #ef4444; margin-top: 16px; }
+    .muted-link { color: var(--muted); font-size: 14px; margin-top: 24px; }
+    .muted-link a { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <main class="checkout">
+    <header class="nav">
+      <a class="home" href="/"><span class="dot"></span><span>Percev</span></a>
+    </header>
+
+    <h1 style="font-size: clamp(32px, 5vw, 48px); margin: 0;">Complete your purchase</h1>
+    <p class="status" id="status">Opening Paddle checkout…</p>
+    <p class="error" id="error" hidden></p>
+    <p class="muted-link">
+      If the checkout doesn't appear in a few seconds, <a href="/">return to percev.app</a>
+      or email <a href="mailto:hello@percev.app">hello@percev.app</a>.
+    </p>
+  </main>
+
+  <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var transactionId = params.get("_ptxn");
+      var env = params.get("_env") === "sandbox" ? "sandbox" : "production";
+
+      var statusEl = document.getElementById("status");
+      var errorEl = document.getElementById("error");
+      function fail(msg) {
+        statusEl.hidden = true;
+        errorEl.textContent = msg;
+        errorEl.hidden = false;
+      }
+
+      if (!transactionId) {
+        fail("Missing transaction id. This page must be opened from the app's Buy button.");
+        return;
+      }
+
+      // Paddle Billing client-side tokens (public — safe to ship in page source).
+      // Generate these in the Paddle dashboard: Developer Tools → Authentication → Client-side tokens.
+      var TOKENS = {
+        sandbox: "test_b54254fdb7d1b60f3010ec0bed5",
+        production: "{{PRODUCTION_CLIENT_TOKEN}}"
+      };
+
+      var token = TOKENS[env];
+      if (!token || token.indexOf("{{") === 0) {
+        fail("Checkout is not yet configured for the " + env + " environment. Please contact support.");
+        return;
+      }
+
+      Paddle.Environment.set(env);
+      Paddle.Setup({
+        token: token,
+        eventCallback: function (ev) {
+          if (ev.name === "checkout.completed") {
+            statusEl.textContent = "Thanks — check your email for your license key.";
+          } else if (ev.name === "checkout.error") {
+            fail("Paddle reported a checkout error. Please retry or contact support.");
+          }
+        }
+      });
+
+      Paddle.Checkout.open({
+        transactionId: transactionId,
+        settings: {
+          displayMode: "overlay",
+          theme: "dark"
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
