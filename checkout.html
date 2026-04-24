@@ -13,6 +13,59 @@
     .error { color: #ef4444; margin-top: 16px; }
     .muted-link { color: var(--muted); font-size: 14px; margin-top: 24px; }
     .muted-link a { text-decoration: underline; }
+
+    #successBox { display: none; text-align: left; max-width: 560px; margin: 24px auto 0; }
+    #successBox.visible { display: block; }
+    #successBox h2 {
+      font-size: 28px;
+      margin: 0 0 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    #successBox p { margin: 8px 0; color: var(--muted); }
+    #successBox .instructions { margin-top: 20px; font-size: 14px; color: var(--muted); }
+    #successBox .instructions strong { color: var(--fg); }
+
+    .keyRow {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+      margin: 16px 0 4px;
+    }
+    .keyBox {
+      flex: 1;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 18px;
+      letter-spacing: 0.04em;
+      padding: 14px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--fg);
+      word-break: break-all;
+      user-select: all;
+    }
+    .copyBtn {
+      flex-shrink: 0;
+      padding: 0 18px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .copyBtn:hover { background: #4f52d9; }
+    .copyBtn.copied { background: #22c55e; }
+    .emailHint {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
@@ -21,12 +74,26 @@
       <a class="home" href="/"><span class="dot"></span><span>Percev</span></a>
     </header>
 
-    <h1 style="font-size: clamp(32px, 5vw, 48px); margin: 0;">Complete your purchase</h1>
+    <h1 id="heading" style="font-size: clamp(32px, 5vw, 48px); margin: 0;">Complete your purchase</h1>
     <p class="status" id="status">Opening Paddle checkout…</p>
     <p class="error" id="error" hidden></p>
+
+    <section id="successBox" aria-live="polite">
+      <h2>You're in. Thanks for supporting Percev.</h2>
+      <p>Here's your lifetime license key — save it somewhere safe.</p>
+      <div class="keyRow">
+        <code class="keyBox" id="licenseKey"></code>
+        <button class="copyBtn" id="copyBtn" type="button">Copy</button>
+      </div>
+      <p class="emailHint">We'll also email a copy of this key to <strong id="receiptEmail">the email you used at checkout</strong>.</p>
+      <p class="instructions">
+        <strong>To activate:</strong> open Percev → Settings → License → <strong>Enter License…</strong>,
+        paste your email plus the key above, and click <strong>Activate</strong>.
+      </p>
+    </section>
+
     <p class="muted-link">
-      If the checkout doesn't appear in a few seconds, <a href="/">return to percev.app</a>
-      or email <a href="mailto:hello@percev.app">hello@percev.app</a>.
+      If you hit any issues, email <a href="mailto:hello@percev.app">hello@percev.app</a> with your receipt and we'll look up your key.
     </p>
   </main>
 
@@ -39,11 +106,54 @@
 
       var statusEl = document.getElementById("status");
       var errorEl = document.getElementById("error");
+      var headingEl = document.getElementById("heading");
+      var successBox = document.getElementById("successBox");
+      var licenseKeyEl = document.getElementById("licenseKey");
+      var copyBtn = document.getElementById("copyBtn");
+      var receiptEmailEl = document.getElementById("receiptEmail");
+
       function fail(msg) {
         statusEl.hidden = true;
         errorEl.textContent = msg;
         errorEl.hidden = false;
       }
+
+      function showSuccess(licenseKey, email) {
+        statusEl.hidden = true;
+        headingEl.textContent = "Welcome to Percev Lifetime";
+        licenseKeyEl.textContent = licenseKey;
+        if (email) {
+          receiptEmailEl.textContent = email;
+        }
+        successBox.classList.add("visible");
+      }
+
+      copyBtn.addEventListener("click", function () {
+        var key = licenseKeyEl.textContent;
+        if (!key) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(key).then(markCopied, fallbackCopy);
+        } else {
+          fallbackCopy();
+        }
+        function markCopied() {
+          copyBtn.textContent = "Copied!";
+          copyBtn.classList.add("copied");
+          setTimeout(function () {
+            copyBtn.textContent = "Copy";
+            copyBtn.classList.remove("copied");
+          }, 1800);
+        }
+        function fallbackCopy() {
+          // Select-all fallback for older browsers.
+          var range = document.createRange();
+          range.selectNodeContents(licenseKeyEl);
+          var sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          try { document.execCommand("copy"); markCopied(); } catch (e) { /* no-op */ }
+        }
+      });
 
       if (!transactionId) {
         fail("Missing transaction id. This page must be opened from the app's Buy button.");
@@ -68,7 +178,19 @@
         token: token,
         eventCallback: function (ev) {
           if (ev.name === "checkout.completed") {
-            statusEl.textContent = "Thanks — check your email for your license key.";
+            var data = ev.data || {};
+            var licenseKey = data.custom_data && data.custom_data.license_key;
+            var email =
+              (data.customer && data.customer.email) ||
+              (data.customer_details && data.customer_details.email) ||
+              null;
+            if (licenseKey) {
+              showSuccess(licenseKey, email);
+            } else {
+              statusEl.textContent =
+                "Thanks — your purchase went through, but the license key couldn't be displayed here. " +
+                "Email hello@percev.app with your receipt and we'll send it.";
+            }
           } else if (ev.name === "checkout.error") {
             fail("Paddle reported a checkout error. Please retry or contact support.");
           }
